@@ -1,0 +1,31 @@
+name: Prepare pinned ASLRef
+description: Build this private ASLRef snapshot and export its verified binary root
+
+inputs:
+  commit:
+    description: Exact commit used to download this private action snapshot
+    required: true
+  ocaml-version:
+    description: Exact OCaml compiler version used by the caller
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Restore ASLRef build cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ github.action_path }}/../../../_build
+        key: aslref-${{ runner.os }}-${{ runner.arch }}-ocaml-${{ inputs.ocaml-version }}-${{ inputs.commit }}
+
+    - name: Build and export the pinned snapshot
+      shell: bash
+      run: |
+        set -euo pipefail
+        aslref_root=$(cd "$GITHUB_ACTION_PATH/../../.." && pwd)
+        opam exec -- dune build --root="$aslref_root" asllib/aslref.exe
+        test -x "$aslref_root/_build/default/asllib/aslref.exe"
+        {
+          echo "PTO_ASLREF_ROOT=$aslref_root"
+          echo "PTO_ASLREF_ACTION_COMMIT=${{ inputs.commit }}"
+        } >> "$GITHUB_ENV"
